@@ -21,9 +21,8 @@ It enables users to authenticate, manage their profiles, and report traffic inci
 
 ## 🛠️ Tech Stack
 - **Flutter** (Dart)  
-- **Firebase / Supabase** (authentication, database, real-time updates)  
+- **Supabase** (authentication, database, real-time updates)  
 - **Push Notifications** (Firebase Cloud Messaging)  
-- **Maps Integration** (Google Maps API)  
 
 ---
 
@@ -31,10 +30,10 @@ It enables users to authenticate, manage their profiles, and report traffic inci
 
 ### Prerequisites
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) installed  
-- API keys for Firebase and Google Maps configured  
+- API keys for Firebase, Supabase, Twilio configured  
 
 ### Installation
 1. Clone this repository:  
    ```bash
-   git clone https://github.com/<your-username>/dnsr-report.git
-   cd dnsr-report
+   git clone https://github.com/Redvirex/dnsr-report.git
+   cd dnsr_user

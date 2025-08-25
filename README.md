@@ -11,19 +11,19 @@ It consists of two Flutter mobile applications:
 ## 📌 Apps Overview
 
 ### 1. DNSR Report (User App)
-Located in: `user_app/`  
+Located in: `dnsr_user/`  
 - Login with magic link (email-based)  
 - Profile management with OTP phone verification  
 - Report incidents with photo, description, and geolocation  
 - View available route codes  
 - Receive proximity notifications about incidents  
 
-📖 Detailed README → [user_app/README.md](user_app/README.md)
+📖 Detailed README → [dnsr_user/README.md](dnsr_user/README.md)
 
 ---
 
 ### 2. DNSR Admin (Admin App)
-Located in: `admin_app/`  
+Located in: `dnsr_admin/`  
 - Secure authentication with email and password  
 - Manage incidents (view, filter, inspect details with embedded map)  
 - Manage user accounts (search, filter)  
@@ -31,7 +31,7 @@ Located in: `admin_app/`
 - View admin profile  
 - Send push notifications to relevant users  
 
-📖 Detailed README → [admin_app/README.md](admin_app/README.md)
+📖 Detailed README → [dnsr_admin/README.md](dnsr_admin/README.md)
 
 ---
 
@@ -44,12 +44,12 @@ Located in: `admin_app/`
 ---
 
 ## 🚀 Getting Started
-Each app (`user_app/` and `admin_app/`) has its own `README.md` with setup instructions.  
+Each app (`dnsr_user/` and `dnsr_admin/`) has its own `README.md` with setup instructions.  
 
 General steps:  
 1. Install [Flutter SDK](https://flutter.dev/docs/get-started/install)  
 2. Navigate to the app folder:  
    ```bash
-   cd user_app    # or cd admin_app
+   cd dnsr_user    # or cd dnsr_admin
    flutter pub get
    flutter run

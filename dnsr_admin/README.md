@@ -20,7 +20,7 @@ It provides tools to manage incidents, user accounts, and application settings i
 
 ## 🛠️ Tech Stack
 - **Flutter** (Dart)  
-- **Firebase / Supabase** (authentication, database, real-time updates)  
+- **Supabase** (authentication, database, real-time updates)  
 - **Push Notifications** (Firebase Cloud Messaging)  
 - **Maps Integration** (Google Maps API)  
 
@@ -30,10 +30,10 @@ It provides tools to manage incidents, user accounts, and application settings i
 
 ### Prerequisites
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) installed  
-- API keys for Firebase and Google Maps configured  
+- API keys for Firebase, Supabase and Google Maps configured  
 
 ### Installation
-1. Clone this repository:  
+ 
    ```bash
-   git clone https://github.com/<your-username>/dnsr-admin.git
-   cd dnsr-admin
+   git clone https://github.com/Redvirex/dnsr-report.git
+   cd dnsr_admin
