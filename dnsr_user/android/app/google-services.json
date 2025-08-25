@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1086533774130",
+    "project_id": "dnsr-project",
+    "storage_bucket": "dnsr-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1086533774130:android:8a1023d91ddfd978b2052b",
+        "android_client_info": {
+          "package_name": "com.example.dnsr_report_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeJggcxZrfr9npvUHYfFk_rlDNLQVfMFM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1086533774130:android:732bc39cc13c0d9fb2052b",
+        "android_client_info": {
+          "package_name": "com.example.flutter_auth_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeJggcxZrfr9npvUHYfFk_rlDNLQVfMFM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
