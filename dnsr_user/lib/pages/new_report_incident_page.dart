@@ -91,10 +91,21 @@ class _NewReportIncidentPageState extends State<NewReportIncidentPage> {
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      setState(() {
-        _locationError = 'Location services are disabled.';
-      });
-      return false;
+      // Try to open location settings
+      bool opened = await Geolocator.openLocationSettings();
+      if (opened) {
+        // Wait a moment for user to enable location
+        await Future.delayed(const Duration(seconds: 2));
+        // Check again if location service is now enabled
+        serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      }
+      
+      if (!serviceEnabled) {
+        setState(() {
+          _locationError = 'Location services are disabled. Please enable location in settings.';
+        });
+        return false;
+      }
     }
 
     permission = await Geolocator.checkPermission();

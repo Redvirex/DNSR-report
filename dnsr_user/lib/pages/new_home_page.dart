@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/shared_bottom_nav_bar.dart';
 import '../pages/new_report_incident_page.dart';
 import '../providers/auth_provider.dart';
@@ -7,6 +8,23 @@ import '../l10n/app_localizations.dart';
 
 class NewHomePage extends StatelessWidget {
   const NewHomePage({super.key});
+
+  Future<void> _downloadRouteCodes() async {
+    const url = 'https://s3.tebi.io/route-code-book/code%20route%20alg%C3%A9rie.pdf';
+    try {
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(
+          Uri.parse(url),
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        throw 'Could not launch $url';
+      }
+    } catch (e) {
+      // Handle error - could show a snackbar or dialog
+      print('Error launching URL: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,14 +158,17 @@ class NewHomePage extends StatelessWidget {
 
                           // Route Codes button
                           GestureDetector(
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(AppLocalizations.of(context)!.routeCodesComingSoon),
-                                  backgroundColor: Colors.orange,
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
+                            onTap: () async {
+                              await _downloadRouteCodes();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Opening route codes PDF...'),
+                                    backgroundColor: Colors.green,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
                             },
                             child: Container(
                               padding: const EdgeInsets.fromLTRB(20, 30, 20, 30),

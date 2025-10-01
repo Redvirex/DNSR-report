@@ -50,3 +50,6 @@ app.*.map.json
 # Firebase configuration files
 firebase.json
 lib/firebase_options.dart
+
+# Diagram files
+diagram/
