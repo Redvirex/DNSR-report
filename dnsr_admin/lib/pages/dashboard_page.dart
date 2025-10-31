@@ -9,6 +9,7 @@ import '../providers/incident_provider.dart';
 import '../widgets/dashboard_sidebar.dart';
 import '../widgets/incident_stats_cards.dart';
 import '../widgets/status_filter_chip.dart';
+import '../widgets/wilaya_filter_dropdown.dart';
 import '../widgets/incident_card.dart';
 import '../widgets/profile_dialog.dart';
 import 'incidents_map_page.dart';
@@ -30,6 +31,9 @@ class _DashboardPageState extends State<DashboardPage> {
   Incident? _focusIncident; // Incident to focus on map page
   bool _enableRealTimeUpdates = true; // Track real-time setting
   IncidentProvider? _incidentProvider; // Cache provider reference for safe dispose
+  DateTime? _fromDate; // Date range filter - start date
+  DateTime? _toDate; // Date range filter - end date
+  String? _selectedUserId; // User to focus on in users page
 
   final List<String> _pageNames = [
     'Incidents',
@@ -105,10 +109,59 @@ class _DashboardPageState extends State<DashboardPage> {
 
   // Helper method to filter incidents locally without affecting provider
   List<Incident> _getFilteredIncidents(List<Incident> incidents) {
-    if (_dashboardStatusFilter == null) {
-      return incidents;
+    var filtered = incidents;
+    
+    // Filter by status
+    if (_dashboardStatusFilter != null) {
+      filtered = filtered.where((incident) => incident.statut == _dashboardStatusFilter).toList();
     }
-    return incidents.where((incident) => incident.statut == _dashboardStatusFilter).toList();
+    
+    // Filter by date range
+    if (_fromDate != null || _toDate != null) {
+      filtered = filtered.where((incident) {
+        final incidentDate = incident.createdAt;
+        
+        // Check if within date range
+        if (_fromDate != null && incidentDate.isBefore(_fromDate!)) {
+          return false;
+        }
+        if (_toDate != null && incidentDate.isAfter(_toDate!.add(const Duration(days: 1)))) {
+          return false;
+        }
+        
+        return true;
+      }).toList();
+    }
+    
+    return filtered;
+  }
+  
+  // Show date range picker dialog
+  Future<void> _showDateRangePicker() async {
+    final fromDate = await showDatePicker(
+      context: context,
+      initialDate: _fromDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      helpText: 'Select Start Date',
+    );
+    
+    if (fromDate == null || !mounted) return;
+    
+    final toDate = await showDatePicker(
+      context: context,
+      initialDate: _toDate ?? DateTime.now(),
+      firstDate: fromDate,
+      lastDate: DateTime.now(),
+      helpText: 'Select End Date',
+    );
+    
+    if (toDate == null || !mounted) return;
+    
+    setState(() {
+      _fromDate = fromDate;
+      _toDate = toDate;
+    });
   }
 
   // Navigate to map page with specific incident focused
@@ -420,6 +473,64 @@ class _DashboardPageState extends State<DashboardPage> {
                             });
                           },
                         ),
+                        const SizedBox(width: 16),
+                        // Wilaya filter
+                        Consumer<IncidentProvider>(
+                          builder: (context, incidentProvider, _) {
+                            return WilayaFilterDropdown(
+                              selectedWilaya: incidentProvider.wilayaFilter,
+                              availableWilayas: incidentProvider.availableWilayas,
+                              onWilayaChanged: (wilaya) {
+                                incidentProvider.setWilayaFilter(wilaya);
+                              },
+                            );
+                          },
+                        ),
+                        if (Provider.of<IncidentProvider>(context, listen: false).wilayaFilter != null) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              Provider.of<IncidentProvider>(context, listen: false).clearWilayaFilter();
+                            },
+                            tooltip: 'Clear wilaya filter',
+                          ),
+                        ],
+                        const SizedBox(width: 16),
+                        // Date range filter
+                        OutlinedButton.icon(
+                          icon: Icon(
+                            _fromDate != null || _toDate != null
+                                ? Icons.filter_list
+                                : Icons.date_range,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _fromDate != null || _toDate != null
+                                ? '${_fromDate != null ? '${_fromDate!.day}/${_fromDate!.month}/${_fromDate!.year}' : ''} - ${_toDate != null ? '${_toDate!.day}/${_toDate!.month}/${_toDate!.year}' : ''}'
+                                : 'Date Range',
+                          ),
+                          onPressed: () => _showDateRangePicker(),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor:
+                                _fromDate != null || _toDate != null
+                                    ? Colors.blue[700]
+                                    : null,
+                          ),
+                        ),
+                        if (_fromDate != null || _toDate != null) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _fromDate = null;
+                                _toDate = null;
+                              });
+                            },
+                            tooltip: 'Clear date range',
+                          ),
+                        ],
                       ],
                     ),
 
@@ -522,7 +633,16 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildMapContent() {
     debugPrint('Building map content with focus incident: ${_focusIncident?.id.substring(0, 8) ?? 'none'}');
     
-    final mapPage = IncidentsMapPage(focusIncident: _focusIncident);
+    final mapPage = IncidentsMapPage(
+      focusIncident: _focusIncident,
+      onNavigateToUser: (userId) {
+        debugPrint('Navigating to users page with userId: $userId');
+        setState(() {
+          _selectedIndex = 2; // Users page
+          _selectedUserId = userId;
+        });
+      },
+    );
     
     // Clear the focus incident after passing it to the map
     if (_focusIncident != null) {
@@ -537,6 +657,18 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildUsersContent() {
+    // Pass the selected user ID to the users page
+    // For now, we just show the standard users page
+    // TODO: Enhance UsersPage to accept and focus on a specific user
+    if (_selectedUserId != null) {
+      debugPrint('Users page should focus on user: $_selectedUserId');
+      // Clear the selection after use
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _selectedUserId = null;
+        });
+      });
+    }
     return const UsersPage();
   }
 

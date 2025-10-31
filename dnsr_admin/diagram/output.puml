@@ -1,0 +1,129 @@
+@startuml AdminAppDiagram
+' ===========================
+' Services principaux
+' ===========================
+class AdminSupabaseService {
+  + signInWithEmailPassword()
+  + signOut()
+  + getUserProfile()
+  + getIncidents()
+  + getUsersCount()
+  + updateIncidentStatus()
+}
+
+class AdminAuthProvider {
+  + status: AdminAuthStatus
+  + userProfile: UserProfile
+  + signInWithEmailAndPassword()
+  + signOut()
+}
+
+class IncidentProvider {
+  + incidents: List<Incident>
+  + statistics: Map<String, int>
+  + loadIncidents()
+  + updateIncidentStatus()
+}
+
+class NotificationService {
+  + sendProximityNotifications()
+  + generateContextualMessage()
+}
+
+class FCMService {
+  + sendNotificationToToken()
+  + sendNotificationsToTokens()
+}
+
+class BroadcastNotificationService {
+  + sendToAllUsers()
+}
+
+' ===========================
+' Modèles de données
+' ===========================
+class UserProfile {
+  id: String
+  email: String
+  role: RoleUtilisateur
+  status: StatutUtilisateur
+}
+
+class Incident {
+  id: String
+  description: String
+  latitude: double
+  longitude: double
+  statut: IncidentStatut
+  createdAt: DateTime
+}
+
+class StatusHistory {
+  id: String
+  incidentId: String
+  ancienStatut: IncidentStatut
+  nouveauStatut: IncidentStatut
+  updatedAt: DateTime
+}
+
+class NotificationResult {
+  totalUsers: int
+  successCount: int
+  failureCount: int
+}
+
+' ===========================
+' Enums
+' ===========================
+enum StatutUtilisateur {
+  ACTIVE
+  DEACTIVATED
+}
+
+enum RoleUtilisateur {
+  CITOYEN
+  ADMIN
+}
+
+enum IncidentStatut {
+  EN_ATTENTE
+  EN_COURS
+  TRAITE
+}
+
+enum AdminAuthStatus {
+  UNKNOWN
+  UNAUTHENTICATED
+  AUTHENTICATED
+  NOTADMIN
+}
+
+' ===========================
+' Pages principales
+' ===========================
+class AdminDashboardApp
+class LoginPage
+class DashboardPage
+class IncidentsMapPage
+class UsersPage
+class SettingsPage
+class BroadcastNotificationsPage
+
+' ===========================
+' Relations principales
+' ===========================
+AdminAuthProvider ..> AdminSupabaseService
+AdminAuthProvider ..> AdminAuthStatus
+IncidentProvider ..> AdminSupabaseService
+IncidentProvider ..> Incident
+NotificationService ..> FCMService
+NotificationService ..> NotificationResult
+BroadcastNotificationService ..> NotificationService
+BroadcastNotificationService ..> NotificationResult
+UserProfile ..> RoleUtilisateur
+UserProfile ..> StatutUtilisateur
+Incident ..> IncidentStatut
+StatusHistory ..> Incident
+StatusHistory ..> IncidentStatut
+
+@enduml

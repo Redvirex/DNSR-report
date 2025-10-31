@@ -1,4 +1,5 @@
 {
     "github.copilot.chat.agent.thinkingTool": true,
-    "editor.overtypeCursorStyle": "line"
+    "editor.overtypeCursorStyle": "line",
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

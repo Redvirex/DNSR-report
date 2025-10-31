@@ -213,7 +213,7 @@ class _ProximityNotificationDialogState
               if (!_useCustomMessage) ...[
                 // Template dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedTemplate,
+                  initialValue: _selectedTemplate,
                   decoration: const InputDecoration(
                     labelText: 'Choisir un modèle',
                     border: OutlineInputBorder(),

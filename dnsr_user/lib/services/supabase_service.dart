@@ -82,7 +82,6 @@ class SupabaseService {
     required String email,
     String? nom,
     String? prenom,
-    String? numeroTelephone,
   }) async {
     try {
       final data = {
@@ -90,9 +89,7 @@ class SupabaseService {
         'email': email,
         'nom': nom,
         'prenom': prenom,
-        'numero_telephone': numeroTelephone,
         'role': 'CITOYEN',
-        'status': 'DEACTIVATED',
         'updated_at': DateTime.now().toIso8601String(),
       };
 
@@ -125,16 +122,14 @@ class SupabaseService {
     }
   }
 
-  /// Updates an existing user profile in the database
+  /// Updates user profile information
   /// Returns the updated UserProfile object
   Future<UserProfile> updateUserProfile({
     required String userId,
     String? nom,
     String? prenom,
-    String? numeroTelephone,
     double? latitude,
     double? longitude,
-    bool verifyPhone = false,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -143,7 +138,6 @@ class SupabaseService {
 
       if (nom != null) data['nom'] = nom;
       if (prenom != null) data['prenom'] = prenom;
-      if (numeroTelephone != null) data['numero_telephone'] = numeroTelephone;
       if (latitude != null) data['latitude'] = latitude;
       if (longitude != null) data['longitude'] = longitude;
 
@@ -154,31 +148,10 @@ class SupabaseService {
           .select()
           .single();
 
-      final updatedProfile = UserProfile.fromJson(response);
-
-      // Check if profile should be activated after this update
-      if (verifyPhone && _shouldActivateProfile(updatedProfile)) {
-        return await activateUserWithPhoneVerification(
-          userId: userId,
-          phoneNumber: numeroTelephone!,
-        );
-      }
-
-      return updatedProfile;
+      return UserProfile.fromJson(response);
     } catch (e) {
       rethrow;
     }
-  }
-
-  /// Checks if a user profile should be activated
-  /// Profile is activated when user has full name and verified phone number
-  bool _shouldActivateProfile(UserProfile profile) {
-    return profile.nom != null &&
-           profile.nom!.isNotEmpty &&
-           profile.prenom != null &&
-           profile.prenom!.isNotEmpty &&
-           profile.numeroTelephone != null &&
-           profile.numeroTelephone!.isNotEmpty;
   }
 
   Future<void> updateUserFCMToken(String userId, String fcmToken) async {
@@ -239,57 +212,6 @@ class SupabaseService {
     } catch (e) {
       rethrow;
     }
-  }
-
-  /// Activates a user with phone verification
-  /// Deactivates any other users with the same phone number
-  /// Returns the updated UserProfile object
-  Future<UserProfile> activateUserWithPhoneVerification({
-    required String userId,
-    required String phoneNumber,
-  }) async {
-    try {
-      // First, deactivate all other users with the same phone number
-      await client
-          .from('utilisateurs')
-          .update({
-            'status': 'DEACTIVATED',
-            'numero_telephone': null,
-            'deactivated_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('numero_telephone', phoneNumber)
-          .neq('id', userId)
-          .neq('role', 'ADMIN'); // Don't deactivate admins
-
-      // Then activate the current user
-      final response = await client
-          .from('utilisateurs')
-          .update({
-            'status': 'ACTIVE',
-            'deactivated_at': null,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', userId)
-          .select()
-          .single();
-
-      return UserProfile.fromJson(response);
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  /// Legacy method for backward compatibility
-  /// Use activateUserWithPhoneVerification instead
-  Future<UserProfile> verifyPhoneNumber({
-    required String userId,
-    required String phoneNumber,
-  }) async {
-    return await activateUserWithPhoneVerification(
-      userId: userId,
-      phoneNumber: phoneNumber,
-    );
   }
 
   Future<List<Map<String, dynamic>>> getIncidentCategories() async {
@@ -378,6 +300,7 @@ class SupabaseService {
     required double longitude,
     required int typeIncidentId,
     int? typeVehiculeId,
+    String? wilaya,
     required List<String> photoUrls,
   }) async {
     try {
@@ -393,6 +316,7 @@ class SupabaseService {
             'description': description.isNotEmpty ? description : null,
             'latitude': latitude,
             'longitude': longitude,
+            'wilaya': wilaya,
             'type_incident': typeIncidentId,
             'type_vehicule': typeVehiculeId,
             'created_at': DateTime.now().toIso8601String(),

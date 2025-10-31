@@ -9,28 +9,14 @@ enum RoleUtilisateur {
   String toString() => value;
 }
 
-enum StatutUtilisateur {
-  ACTIVE('ACTIVE'),
-  DEACTIVATED('DEACTIVATED');
-
-  const StatutUtilisateur(this.value);
-  final String value;
-
-  @override
-  String toString() => value;
-}
-
 class UserProfile {
   final String id;
   final String? nom;
   final String? prenom;
   final String email;
-  final String? numeroTelephone;
   final RoleUtilisateur role;
-  final StatutUtilisateur status;
   final double? latitude;
   final double? longitude;
-  final DateTime? deactivatedAt;
   final DateTime? updatedAt;
   final String? fcmToken;
 
@@ -39,12 +25,9 @@ class UserProfile {
     this.nom,
     this.prenom,
     required this.email,
-    this.numeroTelephone,
     this.role = RoleUtilisateur.CITOYEN,
-    this.status = StatutUtilisateur.DEACTIVATED,
     this.latitude,
     this.longitude,
-    this.deactivatedAt,
     this.updatedAt,
     this.fcmToken,
   });
@@ -55,14 +38,9 @@ class UserProfile {
       nom: json['nom'] as String?,
       prenom: json['prenom'] as String?,
       email: json['email'] as String,
-      numeroTelephone: json['numero_telephone'] as String?,
       role: _parseRole(json['role'] as String?),
-      status: _parseStatus(json['status'] as String?),
       latitude: json['latitude'] as double?,
       longitude: json['longitude'] as double?,
-      deactivatedAt: json['deactivated_at'] != null
-          ? DateTime.parse(json['deactivated_at'] as String)
-          : null,
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
@@ -80,28 +58,15 @@ class UserProfile {
     }
   }
 
-  static StatutUtilisateur _parseStatus(String? status) {
-    switch (status) {
-      case 'ACTIVE':
-        return StatutUtilisateur.ACTIVE;
-      case 'DEACTIVATED':
-      default:
-        return StatutUtilisateur.DEACTIVATED;
-    }
-  }
-
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'nom': nom,
       'prenom': prenom,
       'email': email,
-      'numero_telephone': numeroTelephone,
       'role': role.name,
-      'status': status.name,
       'latitude': latitude,
       'longitude': longitude,
-      'deactivated_at': deactivatedAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'fcm_token': fcmToken,
     };
@@ -114,12 +79,9 @@ class UserProfile {
     String? nom,
     String? prenom,
     String? email,
-    String? numeroTelephone,
     RoleUtilisateur? role,
-    StatutUtilisateur? status,
     double? latitude,
     double? longitude,
-    DateTime? deactivatedAt,
     DateTime? updatedAt,
     String? fcmToken,
   }) {
@@ -128,12 +90,9 @@ class UserProfile {
       nom: nom ?? this.nom,
       prenom: prenom ?? this.prenom,
       email: email ?? this.email,
-      numeroTelephone: numeroTelephone ?? this.numeroTelephone,
       role: role ?? this.role,
-      status: status ?? this.status,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
-      deactivatedAt: deactivatedAt ?? this.deactivatedAt,
       updatedAt: updatedAt ?? this.updatedAt,
       fcmToken: fcmToken ?? this.fcmToken,
     );
@@ -148,17 +107,12 @@ class UserProfile {
     return nom != null &&
         nom!.isNotEmpty &&
         prenom != null &&
-        prenom!.isNotEmpty &&
-        numeroTelephone != null &&
-        numeroTelephone!.isNotEmpty &&
-        status == StatutUtilisateur.ACTIVE;
+        prenom!.isNotEmpty;
   }
-
-  bool get isPhoneVerified => status == StatutUtilisateur.ACTIVE;
 
   @override
   String toString() {
-    return 'UserProfile(id: $id, nom: $nom, prenom: $prenom, email: $email, numeroTelephone: $numeroTelephone, role: $role, status: $status, latitude: $latitude, longitude: $longitude, fcmToken: $fcmToken)';
+    return 'UserProfile(id: $id, nom: $nom, prenom: $prenom, email: $email, role: $role, latitude: $latitude, longitude: $longitude, fcmToken: $fcmToken)';
   }
 
   @override
@@ -169,9 +123,7 @@ class UserProfile {
         other.nom == nom &&
         other.prenom == prenom &&
         other.email == email &&
-        other.numeroTelephone == numeroTelephone &&
         other.role == role &&
-        other.status == status &&
         other.latitude == latitude &&
         other.longitude == longitude;
   }
@@ -183,9 +135,7 @@ class UserProfile {
       nom,
       prenom,
       email,
-      numeroTelephone,
       role,
-      status,
       latitude,
       longitude,
     );

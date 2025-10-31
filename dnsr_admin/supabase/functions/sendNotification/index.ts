@@ -85,13 +85,6 @@ serve(async (req) => {
       );
     }
 
-    if (userProfile.status !== 'ACTIVE') {
-      return new Response(
-        JSON.stringify({ error: 'Account is deactivated' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     // Parse notification request
     const notificationData: NotificationRequest = await req.json();
     

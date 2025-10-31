@@ -27,6 +27,7 @@ class Incident {
   final String? incidentTypeName;
   final String? vehicleTypeName;
   final String? categoryName;
+  final String? wilaya;
 
   const Incident({
     required this.id,
@@ -44,6 +45,7 @@ class Incident {
     this.incidentTypeName,
     this.vehicleTypeName,
     this.categoryName,
+    this.wilaya,
   });
 
   factory Incident.fromJson(Map<String, dynamic> json) {
@@ -65,6 +67,7 @@ class Incident {
       incidentTypeName: json['incident_type_name'] as String?,
       vehicleTypeName: json['vehicle_type_name'] as String?,
       categoryName: json['category_name'] as String?,
+      wilaya: json['wilaya'] as String?,
     );
   }
 
@@ -111,6 +114,7 @@ class Incident {
     String? incidentTypeName,
     String? vehicleTypeName,
     String? categoryName,
+    String? wilaya,
   }) {
     return Incident(
       id: id ?? this.id,
@@ -128,6 +132,7 @@ class Incident {
       incidentTypeName: incidentTypeName ?? this.incidentTypeName,
       vehicleTypeName: vehicleTypeName ?? this.vehicleTypeName,
       categoryName: categoryName ?? this.categoryName,
+      wilaya: wilaya ?? this.wilaya,
     );
   }
 

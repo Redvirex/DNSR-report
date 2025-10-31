@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import '../services/supabase_service.dart';
+import '../services/location_service.dart';
 import '../providers/auth_provider.dart';
 import '../l10n/app_localizations.dart';
 import 'dart:developer';
@@ -34,6 +35,7 @@ class _NewReportIncidentPageState extends State<NewReportIncidentPage> {
 
   double? _latitude;
   double? _longitude;
+  String? _wilaya;
   String? _locationError;
 
   final List<File> _selectedPhotos = [];
@@ -152,9 +154,55 @@ class _NewReportIncidentPageState extends State<NewReportIncidentPage> {
         ),
       );
 
+      // Get wilaya from coordinates
+      print('════════════════════════════════════');
+      print('🗺️  GETTING WILAYA FOR POSITION');
+      print('📌 Coordinates: ${position.latitude}, ${position.longitude}');
+      
+      final locationService = LocationService.instance;
+      final wilaya = await locationService.getWilayaFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      print('🏛️  DETECTED WILAYA: ${wilaya ?? "NULL"}');
+      print('════════════════════════════════════');
+
+      // Check if wilaya was successfully retrieved
+      if (wilaya == null || wilaya.isEmpty) {
+        setState(() {
+          _isGettingLocation = false;
+          _locationError = 'Failed to determine wilaya (province). Please try again.';
+          _latitude = null;
+          _longitude = null;
+          _wilaya = null;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to determine wilaya (province). Please try again.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Retry',
+                textColor: Colors.white,
+                onPressed: _getCurrentPosition,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Success - wilaya retrieved
       setState(() {
         _latitude = position.latitude;
         _longitude = position.longitude;
+        _wilaya = wilaya;
         _isGettingLocation = false;
         _locationError = null;
       });
@@ -164,9 +212,7 @@ class _NewReportIncidentPageState extends State<NewReportIncidentPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Location obtained: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}',
-            ),
+            content: Text('Location obtained: $wilaya'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -408,16 +454,23 @@ class _NewReportIncidentPageState extends State<NewReportIncidentPage> {
         return;
       }
 
-      if (_latitude == null || _longitude == null) {
+      if (_latitude == null || _longitude == null || _wilaya == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)!.locationMandatoryError),
+            content: Text(
+              _wilaya == null
+                  ? 'Location and wilaya are required. Please get your location again.'
+                  : AppLocalizations.of(context)!.locationMandatoryError,
+            ),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Get Location',
+              textColor: Colors.white,
+              onPressed: _getCurrentPosition,
+            ),
           ),
         );
-
-        await _getCurrentPosition();
         return;
       }
 
@@ -464,6 +517,7 @@ class _NewReportIncidentPageState extends State<NewReportIncidentPage> {
               : _descriptionController.text.trim(),
           latitude: _latitude!,
           longitude: _longitude!,
+          wilaya: _wilaya,
           photoUrls: photoUrls,
         );
 
@@ -623,7 +677,7 @@ class _NewReportIncidentPageState extends State<NewReportIncidentPage> {
                                           ),
                                         ),
                                         hint: Text(AppLocalizations.of(context)!.selectIncidentCategory),
-                                        value: _selectedIncidentCategory,
+                                        initialValue: _selectedIncidentCategory,
                                         items: _incidentCategories.map((
                                           category,
                                         ) {
@@ -672,7 +726,7 @@ class _NewReportIncidentPageState extends State<NewReportIncidentPage> {
                                           ),
                                           
                                           hint: Text(AppLocalizations.of(context)!.selectIncidentType),
-                                          value: _selectedIncidentType,
+                                          initialValue: _selectedIncidentType,
                                           items: _incidentTypes.map((type) {
                                             return DropdownMenuItem<String>(
                                               value: type['title'],
@@ -722,7 +776,7 @@ class _NewReportIncidentPageState extends State<NewReportIncidentPage> {
                                           ),
                                           
                                           hint: Text(AppLocalizations.of(context)!.selectVehicleType),
-                                          value: _selectedVehicleType,
+                                          initialValue: _selectedVehicleType,
                                           isExpanded: true,
                                           items: _vehicleTypes.map((type) {
                                             return DropdownMenuItem<String>(

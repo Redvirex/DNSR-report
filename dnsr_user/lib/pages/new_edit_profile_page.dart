@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../services/twilio_service.dart';
 import '../l10n/app_localizations.dart';
 
 class NewEditProfilePage extends StatefulWidget {
@@ -15,20 +14,8 @@ class NewEditProfilePage extends StatefulWidget {
 class _NewEditProfilePageState extends State<NewEditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
-  final _phoneController =
-      TextEditingController(); // Will hold only the digits after +213
   final _emailController = TextEditingController();
   bool _isLoading = false;
-
-  // Phone verification states
-  bool _showPhoneVerification = false;
-  bool _isVerifying = false;
-  bool _isVerified = false;
-  String? _originalPhoneNumber;
-  bool _otpSent = false;
-  Timer? _timer;
-  int _timerSeconds = 60;
-  final _otpController = TextEditingController();
 
   @override
   void initState() {
@@ -40,279 +27,20 @@ class _NewEditProfilePageState extends State<NewEditProfilePage> {
       if (userProfile != null) {
         _fullNameController.text =
             '${userProfile.prenom ?? ''} ${userProfile.nom ?? ''}'.trim();
-
-        // Store original phone number and extract digits for the editable field
-        _originalPhoneNumber = userProfile.numeroTelephone;
-        String phoneNumber = userProfile.numeroTelephone ?? '';
-        if (phoneNumber.startsWith('+213')) {
-          _phoneController.text = phoneNumber.substring(
-            4,
-          ); // Remove +213 prefix
-        } else if (phoneNumber.startsWith('213')) {
-          _phoneController.text = phoneNumber.substring(3); // Remove 213 prefix
-        } else {
-          _phoneController.text = phoneNumber; // Use as is if no prefix
-        }
-
-        // If user has existing phone number, consider it verified
-        if (phoneNumber.isNotEmpty) {
-          _isVerified = true;
-        }
-
         _emailController.text = userProfile.email;
       }
-
-      // Add listener to detect phone number changes
-      _phoneController.addListener(_checkPhoneNumberChange);
-
-      // Add listener for OTP field changes
-      _otpController.addListener(() {
-        setState(() {}); // Rebuild to enable/disable verify button
-      });
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     _fullNameController.dispose();
-    _phoneController.dispose();
     _emailController.dispose();
-    _otpController.dispose();
     super.dispose();
-  }
-
-  void _checkPhoneNumberChange() {
-    if (_originalPhoneNumber != null) {
-      String phoneDigits = _phoneController.text.replaceAll(
-        RegExp(r'[^0-9]'),
-        '',
-      );
-      String currentFormattedPhone = phoneDigits.isNotEmpty
-          ? '+213$phoneDigits'
-          : '';
-
-      bool phoneChanged = _originalPhoneNumber != currentFormattedPhone;
-
-      if (mounted) {
-        setState(() {
-          if (phoneChanged) {
-            _isVerified = false;
-          } else {
-            _isVerified = true;
-          }
-        });
-      }
-    }
-  }
-
-  Future<void> _sendOTP() async {
-    setState(() {
-      _isVerifying = true;
-    });
-
-    String phoneDigits = _phoneController.text.replaceAll(
-      RegExp(r'[^0-9]'),
-      '',
-    );
-    String formattedPhone = '+213$phoneDigits';
-
-    final success = await TwilioService.instance.sendOTP(formattedPhone);
-
-    setState(() {
-      _isVerifying = false;
-    });
-
-    if (success) {
-      _startOTPTimer();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.otpSentSuccessfully),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.failedToSendOTP),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _startOTPTimer() {
-    _timer?.cancel();
-    _otpSent = true;
-    _timerSeconds = 60;
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_timerSeconds > 0) {
-        _timerSeconds--;
-        if (mounted) setState(() {});
-      } else {
-        timer.cancel();
-        if (mounted) {
-          setState(() {
-            _otpSent = false;
-          });
-        }
-      }
-    });
-  }
-
-  Future<void> _verifyOTP() async {
-    String phoneDigits = _phoneController.text.replaceAll(
-      RegExp(r'[^0-9]'),
-      '',
-    );
-    String formattedPhone = '+213$phoneDigits';
-
-    final isValid = await TwilioService.instance.verifyOTP(
-      formattedPhone,
-      _otpController.text,
-    );
-
-    if (isValid) {
-      setState(() {
-        _isVerified = true;
-        _showPhoneVerification = false;
-        _otpSent = false;
-      });
-      _timer?.cancel();
-      _otpController.clear();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.phoneVerifiedSuccessfully),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Automatically update profile after successful OTP verification
-        await _updateProfileAfterVerification();
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.invalidOTP),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _updateProfileAfterVerification() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final fullName = _fullNameController.text.trim().split(' ');
-      final prenom = fullName.isNotEmpty ? fullName.first : '';
-      final nom = fullName.length > 1 ? fullName.skip(1).join(' ') : '';
-
-      String phoneDigits = _phoneController.text.replaceAll(
-        RegExp(r'[^0-9]'),
-        '',
-      );
-      String formattedPhone = phoneDigits.isNotEmpty ? '+213$phoneDigits' : '';
-
-      // Validate that we have phone digits
-      if (phoneDigits.isEmpty) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.pleaseEnterValidPhoneNumber),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      // First update the basic profile information
-      final profileUpdateSuccess = await authProvider.updateProfile(
-        prenom: prenom,
-        nom: nom,
-        numeroTelephone: formattedPhone,
-      );
-
-      if (profileUpdateSuccess) {
-        // Then complete phone verification which will activate user if profile is complete
-        final verificationSuccess = await authProvider
-            .completePhoneVerification(phoneNumber: formattedPhone);
-
-        setState(() {
-          _isLoading = false;
-        });
-
-        if (mounted) {
-        if (mounted) {
-          if (verificationSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(AppLocalizations.of(context)!.profileUpdatedAndVerified),
-                backgroundColor: Colors.green,
-              ),
-            );
-            // Navigate back to profile page after successful update
-            Navigator.of(context).pop();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  AppLocalizations.of(context)!.profileUpdatedButVerificationFailed,
-                ),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        }
-        }
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppLocalizations.of(context)!.profileUpdateFailed),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
   }
 
   Future<void> _updateProfile() async {
     if (_formKey.currentState!.validate()) {
-      // Check if phone number has changed and needs verification
-      String phoneDigits = _phoneController.text.replaceAll(
-        RegExp(r'[^0-9]'),
-        '',
-      );
-      String formattedPhone = phoneDigits.isNotEmpty ? '+213$phoneDigits' : '';
-      bool phoneChanged = _originalPhoneNumber != formattedPhone;
-
-      if (phoneChanged && !_isVerified) {
-        setState(() {
-          _showPhoneVerification = true;
-        });
-        return;
-      }
-
       setState(() {
         _isLoading = true;
       });
@@ -322,24 +50,9 @@ class _NewEditProfilePageState extends State<NewEditProfilePage> {
       final prenom = fullName.isNotEmpty ? fullName.first : '';
       final nom = fullName.length > 1 ? fullName.skip(1).join(' ') : '';
 
-      // Validate that we have phone digits
-      if (phoneDigits.isEmpty) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.pleaseEnterValidPhoneNumber),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
       final success = await authProvider.updateProfile(
         prenom: prenom,
         nom: nom,
-        numeroTelephone: formattedPhone,
       );
 
       setState(() {
@@ -579,102 +292,6 @@ class _NewEditProfilePageState extends State<NewEditProfilePage> {
                                       ),
                                       const SizedBox(height: 20),
 
-                                      // Phone Field
-                                      Text(
-                                        AppLocalizations.of(context)!.phone,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.black87,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: const Color(
-                                            0xFFD4A017,
-                                          ).withValues(alpha: 0.3),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            // Non-editable +213 prefix
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 26,
-                                                    vertical: 12,
-                                                  ),
-                                              child: const Text(
-                                                "+213",
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  color: Colors.black87,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ),
-                                            // Thin vertical divider
-                                            Container(
-                                              width: 1,
-                                              height: 20,
-                                              color: Colors.black26,
-                                            ),
-                                            // Editable phone number field
-                                            Expanded(
-                                              child: TextFormField(
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                ),
-                                                textDirection:
-                                                    TextDirection.ltr,
-                                                controller: _phoneController,
-                                                keyboardType:
-                                                    TextInputType.phone,
-                                                decoration:
-                                                    InputDecoration(
-                                                      border: InputBorder.none,
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                            horizontal: 16,
-                                                            vertical: 12,
-                                                          ),
-                                                      hintText:
-                                                          AppLocalizations.of(context)!.enterPhoneNumber,
-                                                    ),
-                                                validator: (value) {
-                                                  if (value == null ||
-                                                      value.trim().isEmpty) {
-                                                    return AppLocalizations.of(context)!.pleaseEnterPhoneNumber;
-                                                  }
-
-                                                  // Remove any non-digit characters
-                                                  String digits = value
-                                                      .replaceAll(
-                                                        RegExp(r'[^0-9]'),
-                                                        '',
-                                                      );
-
-                                                  // Check if we have exactly 9 digits and starts with 5, 6, or 7
-                                                  final phoneRegex = RegExp(
-                                                    r'^[5-7]\d{8}$',
-                                                  );
-                                                  if (!phoneRegex.hasMatch(
-                                                    digits,
-                                                  )) {
-                                                    return AppLocalizations.of(context)!.pleaseEnterValidAlgerianPhone;
-                                                  }
-                                                  return null;
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 20),
-
                                       // Email Field
                                       Text(
                                         AppLocalizations.of(context)!.emailAddress,
@@ -866,136 +483,7 @@ class _NewEditProfilePageState extends State<NewEditProfilePage> {
               ),
             ),
           ),
-
-          // Phone verification floating widget
-          _showPhoneVerification
-              ? _buildPhoneVerificationWidget()
-              : Container(),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPhoneVerificationWidget() {
-    return Container(
-      color: Colors.black54,
-      child: Center(
-        child: Container(
-          margin: const EdgeInsets.all(20),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                AppLocalizations.of(context)!.phoneVerificationRequired,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                AppLocalizations.of(context)!.phoneNumberChanged,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 24),
-
-              if (!_otpSent) ...[
-                // Send OTP button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isVerifying ? null : _sendOTP,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD4A017),
-                    ),
-                    child: _isVerifying
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            AppLocalizations.of(context)!.sendOTP,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                  ),
-                ),
-              ] else ...[
-                // OTP input field
-                TextField(
-                  controller: _otpController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 24, letterSpacing: 8),
-                  decoration: const InputDecoration(
-                    hintText: '000000',
-                    border: OutlineInputBorder(),
-                    counterText: '',
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Verify OTP button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _otpController.text.length == 6
-                        ? _verifyOTP
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD4A017),
-                    ),
-                    child: Text(
-                      AppLocalizations.of(context)!.verifyOTP,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Resend OTP button
-                TextButton(
-                  onPressed: _timerSeconds == 0 ? _sendOTP : null,
-                  child: Text(
-                    _timerSeconds > 0
-                        ? '${AppLocalizations.of(context)!.resendOTP} ($_timerSeconds s)'
-                        : AppLocalizations.of(context)!.resendOTP,
-                    style: TextStyle(
-                      color: _timerSeconds > 0
-                          ? Colors.grey
-                          : const Color(0xFFD4A017),
-                    ),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 16),
-
-              // Cancel button
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _showPhoneVerification = false;
-                    _otpSent = false;
-                  });
-                  _timer?.cancel();
-                  _otpController.clear();
-                },
-                child: Text(
-                  AppLocalizations.of(context)!.cancel,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

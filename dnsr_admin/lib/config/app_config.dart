@@ -9,17 +9,26 @@ class AppConfig {
   // Get values from environment variables with platform-specific fallbacks
   static String get supabaseUrl {
     if (kIsWeb) {
-      return WebConfig.getSupabaseUrl();
+      final webUrl = WebConfig.getSupabaseUrl();
+      // If web config is empty (local dev), fall back to .env
+      if (webUrl.isEmpty && dotenv.env.containsKey('SUPABASE_URL')) {
+        return dotenv.env['SUPABASE_URL']!;
+      }
+      return webUrl;
     }
     return dotenv.env['SUPABASE_URL'] ?? '';
   }
   
   static String get supabaseAnonKey {
     if (kIsWeb) {
-      return WebConfig.getSupabaseAnonKey();
+      final webKey = WebConfig.getSupabaseAnonKey();
+      // If web config is empty (local dev), fall back to .env
+      if (webKey.isEmpty && dotenv.env.containsKey('SUPABASE_ANON_KEY')) {
+        return dotenv.env['SUPABASE_ANON_KEY']!;
+      }
+      return webKey;
     }
-    return dotenv.env['SUPABASE_ANON_KEY'] ?? 
-        '';
+    return dotenv.env['SUPABASE_ANON_KEY'] ?? '';
   }
 
   // Admin-specific configuration
@@ -29,21 +38,26 @@ class AppConfig {
   // Map configuration 
   static String get googleMapsApiKey {
     if (kIsWeb) {
-      return WebConfig.getGoogleMapsApiKey();
+      final webKey = WebConfig.getGoogleMapsApiKey();
+      // If web config is empty (local dev), fall back to .env
+      if (webKey.isEmpty && dotenv.env.containsKey('GOOGLE_MAPS_API_KEY')) {
+        return dotenv.env['GOOGLE_MAPS_API_KEY']!;
+      }
+      return webKey;
     }
     return dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
   }
   
   /// Initialize environment configuration
   static Future<void> initialize() async {
-    if (!kIsWeb) {
-      try {
-        await dotenv.load(fileName: '.env');
-      } catch (e) {
-        // If .env file doesn't exist or fails to load, use default values
-        developer.log('Warning: Could not load .env file. Using default configuration.');
-      }
+    try {
+      // Load .env for both web and native platforms
+      await dotenv.load(fileName: '.env');
+      developer.log('✅ Loaded configuration from .env file');
+    } catch (e) {
+      // If .env file doesn't exist or fails to load, use default values
+      developer.log('Warning: Could not load .env file. Using web configuration or defaults.');
     }
-    // For web, configuration is loaded dynamically from meta tags or URL params
+    // For web in production, configuration can also be loaded from meta tags or URL params
   }
 }

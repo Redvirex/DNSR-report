@@ -18,10 +18,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -29,9 +27,15 @@ migrate_working_dir/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
+.metadata
+
+# Build artifacts - LARGE FILES
 /build/
+*.js.map
+*.dart.js
 
 # Symbolication related
 app.*.symbols
@@ -50,11 +54,32 @@ app.*.map.json
 .env.production
 .env.development
 .env.*.local
+*.env
+!.env.example
+!.env.production.example
 
 # Firebase sensitive files
+.firebase/
 firebase-adminsdk-*.json
 google-services.json
 GoogleService-Info.plist
+firebase.json.backup
+
+# Configuration files with sensitive data
+/lib/config/app_config.dart
+/lib/config/fcm_config.dart
 
 # Deployment sensitive files
-/lib/config/app_config.dart.backup
+*.backup
+*.bak
+index.html.backup*
+
+# Supabase
+.supabase/
+
+# IDE
+.fleet/
+
+# Diagram temporary files
+/diagram/*.tmp
+/diagram/*.bak

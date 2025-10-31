@@ -356,13 +356,6 @@ class _LoginPageState extends State<LoginPage> {
                                             fontSize: 11,
                                           ),
                                         ),
-                                        Text(
-                                          'Status: ${authProvider.userProfile!.status}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 11,
-                                          ),
-                                        ),
                                       ],
                                       if (authProvider.errorMessage != null)
                                         Text(

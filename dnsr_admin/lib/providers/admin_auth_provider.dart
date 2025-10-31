@@ -63,24 +63,20 @@ class AdminAuthProvider extends ChangeNotifier {
 
       if (profile != null) {
         if (kDebugMode) {
-          developer.log('Profile loaded - role: ${profile.role}, status: ${profile.status}', name: 'AdminAuthProvider');
+          developer.log('Profile loaded - role: ${profile.role}', name: 'AdminAuthProvider');
         }
         _userProfile = profile;
-        // Check if user is admin and active
-        if (profile.isAdmin && profile.status == StatutUtilisateur.ACTIVE) {
+        // Check if user is admin
+        if (profile.isAdmin) {
           _status = AdminAuthStatus.authenticated;
           if (kDebugMode) {
-            developer.log('User authenticated as active admin', name: 'AdminAuthProvider');
+            developer.log('User authenticated as admin', name: 'AdminAuthProvider');
           }
           _errorMessage = null; // Clear any previous errors
-        } else if (!profile.isAdmin) {
+        } else {
           _status = AdminAuthStatus.notAdmin;
           _errorMessage = 'Access denied: Admin privileges required';
           developer.log('User is not admin - role: ${profile.role}', name: 'AdminAuthProvider');
-        } else if (profile.status != StatutUtilisateur.ACTIVE) {
-          _status = AdminAuthStatus.notAdmin;
-          _errorMessage = 'Account is deactivated. Please contact support.';
-          developer.log('User account is not active - status: ${profile.status}', name: 'AdminAuthProvider');
         }
       } else {
         developer.log('No profile found for user', name: 'AdminAuthProvider');

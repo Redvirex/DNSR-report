@@ -1,4 +1,5 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'dart:developer';
 
 class LocationService {
@@ -82,6 +83,47 @@ class LocationService {
 
   Future<bool> openLocationSettings() async {
     return await Geolocator.openLocationSettings();
+  }
+
+  /// Get wilaya (province) name from coordinates using reverse geocoding
+  /// Returns the administrative area (wilaya) for Algerian coordinates
+  Future<String?> getWilayaFromCoordinates(
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      print('🌍 LocationService: Getting wilaya for coordinates: $latitude, $longitude');
+
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        latitude,
+        longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final placemark = placemarks.first;
+
+        // In Algeria, administrativeArea usually contains the wilaya
+        String? wilaya = placemark.administrativeArea;
+
+        print('✅ LocationService: Found wilaya: $wilaya');
+        print('📍 LocationService: Full placemark details:');
+        print('   - locality: ${placemark.locality}');
+        print('   - subLocality: ${placemark.subLocality}');
+        print('   - administrativeArea: ${placemark.administrativeArea}');
+        print('   - subAdministrativeArea: ${placemark.subAdministrativeArea}');
+        print('   - country: ${placemark.country}');
+        print('   - postalCode: ${placemark.postalCode}');
+        print('   - street: ${placemark.street}');
+
+        return wilaya;
+      }
+
+      print('⚠️ LocationService: No placemarks found');
+      return null;
+    } catch (e) {
+      print('❌ LocationService: Error getting wilaya: $e');
+      return null;
+    }
   }
 }
 

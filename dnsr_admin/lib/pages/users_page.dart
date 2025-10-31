@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
 import '../services/supabase_service.dart';
 
-enum SearchCriteria { email, phone, name }
+enum SearchCriteria { email, name }
 
 class UsersPage extends StatefulWidget {
   const UsersPage({super.key});
@@ -99,79 +99,6 @@ class _UsersPageState extends State<UsersPage> {
       switch (_searchCriteria) {
         case SearchCriteria.email:
           return user.email.toLowerCase().contains(_searchQuery);
-        case SearchCriteria.phone:
-          if (user.numeroTelephone == null) return false;
-
-          final userPhone = user.numeroTelephone!.toLowerCase();
-          final searchQuery = _searchQuery.toLowerCase().trim();
-
-          // Direct match first
-          if (userPhone.contains(searchQuery)) {
-            return true;
-          }
-
-          // Handle Algerian phone number formats
-          if (searchQuery.isNotEmpty) {
-            // If user enters number starting with 0 (Algerian local format: 0XXXXXXXXX)
-            if (searchQuery.startsWith('0')) {
-              // Convert 0XXXXXXXXX to +213XXXXXXXXX (remove 0, add +213)
-              final withCountryCode = '+213${searchQuery.substring(1)}';
-              if (userPhone.contains(withCountryCode)) {
-                return true;
-              }
-              // Also try without + symbol
-              final withoutPlus = '213${searchQuery.substring(1)}';
-              if (userPhone.contains(withoutPlus)) {
-                return true;
-              }
-            }
-            // If user enters international format starting with +213
-            else if (searchQuery.startsWith('+213')) {
-              // Already in correct format, try direct match (already done above)
-              // Also try converting to local format with 0
-              if (searchQuery.length > 4) {
-                final localFormat = '0${searchQuery.substring(4)}';
-                if (userPhone.contains(localFormat)) {
-                  return true;
-                }
-              }
-            }
-            // If user enters format starting with 213 (without +)
-            else if (searchQuery.startsWith('213')) {
-              // Try with + prefix
-              final withPlus = '+$searchQuery';
-              if (userPhone.contains(withPlus)) {
-                return true;
-              }
-              // Try converting to local format with 0
-              if (searchQuery.length > 3) {
-                final localFormat = '0${searchQuery.substring(3)}';
-                if (userPhone.contains(localFormat)) {
-                  return true;
-                }
-              }
-            }
-            // If user enters just the number without any prefix
-            else {
-              // Try with +213 prefix
-              final withCountryCode = '+213$searchQuery';
-              if (userPhone.contains(withCountryCode)) {
-                return true;
-              }
-              // Try with 213 prefix (without +)
-              final withoutPlus = '213$searchQuery';
-              if (userPhone.contains(withoutPlus)) {
-                return true;
-              }
-              // Try with 0 prefix (local format)
-              final withZero = '0$searchQuery';
-              if (userPhone.contains(withZero)) {
-                return true;
-              }
-            }
-          }
-
-          return false;
         case SearchCriteria.name:
           final fullName = '${user.prenom ?? ''} ${user.nom ?? ''}'
               .toLowerCase();
@@ -422,7 +349,7 @@ class _UsersPageState extends State<UsersPage> {
       color: isSelected ? Colors.blue.shade50 : Colors.white,
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: _getUserStatusColor(user.status),
+          backgroundColor: Colors.blue,
           child: Text(
             _getUserInitials(user),
             style: const TextStyle(
@@ -439,15 +366,8 @@ class _UsersPageState extends State<UsersPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(user.email),
-            if (user.numeroTelephone != null) Text(user.numeroTelephone!),
             const SizedBox(height: 4),
-            Row(
-              children: [
-                _buildStatusChip(user.status),
-                const SizedBox(width: 8),
-                _buildRoleChip(user.role),
-              ],
-            ),
+            _buildRoleChip(user.role),
           ],
         ),
         trailing: Row(
@@ -612,7 +532,7 @@ class _UsersPageState extends State<UsersPage> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: _getUserStatusColor(user.status),
+                  backgroundColor: Colors.blue,
                   child: Text(
                     _getUserInitials(user),
                     style: const TextStyle(
@@ -655,14 +575,8 @@ class _UsersPageState extends State<UsersPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Status and Role
-                  Row(
-                    children: [
-                      _buildStatusChip(user.status),
-                      const SizedBox(width: 8),
-                      _buildRoleChip(user.role),
-                    ],
-                  ),
+                  // Role
+                  _buildRoleChip(user.role),
 
                   const SizedBox(height: 24),
 
@@ -675,10 +589,6 @@ class _UsersPageState extends State<UsersPage> {
                     ),
                     _buildDetailRow('Last Name', user.nom ?? 'Not provided'),
                     _buildDetailRow('Email', user.email),
-                    _buildDetailRow(
-                      'Phone Number',
-                      user.numeroTelephone ?? 'Not provided',
-                    ),
                   ]),
 
                   const SizedBox(height: 24),
@@ -686,10 +596,6 @@ class _UsersPageState extends State<UsersPage> {
                   // Account Information
                   _buildDetailSection('Account Information', [
                     _buildDetailRow('Role', _getRoleDisplayName(user.role)),
-                    _buildDetailRow(
-                      'Status',
-                      _getStatusDisplayName(user.status),
-                    ),
                     if (user.createdAt != null)
                       _buildDetailRow(
                         'Registration Date',
@@ -763,25 +669,6 @@ class _UsersPageState extends State<UsersPage> {
     );
   }
 
-  Widget _buildStatusChip(StatutUtilisateur status) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: _getUserStatusColor(status).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _getUserStatusColor(status), width: 1),
-      ),
-      child: Text(
-        _getStatusDisplayName(status),
-        style: TextStyle(
-          color: _getUserStatusColor(status),
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
   Widget _buildRoleChip(RoleUtilisateur role) {
     final color = role == RoleUtilisateur.ADMIN ? Colors.purple : Colors.blue;
     return Container(
@@ -806,8 +693,6 @@ class _UsersPageState extends State<UsersPage> {
     switch (criteria) {
       case SearchCriteria.email:
         return 'Email';
-      case SearchCriteria.phone:
-        return 'Phone';
       case SearchCriteria.name:
         return 'Name';
     }
@@ -817,8 +702,6 @@ class _UsersPageState extends State<UsersPage> {
     switch (_searchCriteria) {
       case SearchCriteria.email:
         return 'Search by email...';
-      case SearchCriteria.phone:
-        return 'Search by phone (0XXXXXXXXX or +213XXXXXXXXX)...';
       case SearchCriteria.name:
         return 'Search by name...';
     }
@@ -841,24 +724,6 @@ class _UsersPageState extends State<UsersPage> {
     }
     return '${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}'
         .toUpperCase();
-  }
-
-  Color _getUserStatusColor(StatutUtilisateur status) {
-    switch (status) {
-      case StatutUtilisateur.ACTIVE:
-        return Colors.green;
-      case StatutUtilisateur.DEACTIVATED:
-        return Colors.red;
-    }
-  }
-
-  String _getStatusDisplayName(StatutUtilisateur status) {
-    switch (status) {
-      case StatutUtilisateur.ACTIVE:
-        return 'Active';
-      case StatutUtilisateur.DEACTIVATED:
-        return 'Deactivated';
-    }
   }
 
   String _getRoleDisplayName(RoleUtilisateur role) {

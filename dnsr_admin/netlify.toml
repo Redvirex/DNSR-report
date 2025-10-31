@@ -1,0 +1,54 @@
+# Netlify configuration for DNSR Admin Dashboard
+[build]
+  # Build command (optional - not needed for drag & drop)
+  command = "flutter build web --release --no-web-resources-cdn"
+  # Output directory
+  publish = "build/web"
+
+[build.environment]
+  # Flutter version (adjust if needed)
+  # FLUTTER_VERSION = "3.32.7"
+
+[[redirects]]
+  # Redirect all routes to index.html for Flutter web routing
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  # Security headers
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+[[headers]]
+  # Cache static assets for 1 year
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  # Cache JavaScript and CSS for 1 year
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  # Don't cache the main HTML file
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  # Don't cache service worker
+  for = "/flutter_service_worker.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

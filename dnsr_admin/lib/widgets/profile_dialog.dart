@@ -101,8 +101,6 @@ class ProfileDialog extends StatelessWidget {
                   [
                     _buildInfoRow('Nom complet', userProfile.fullName),
                     _buildInfoRow('Email', userProfile.email),
-                    if (userProfile.numeroTelephone?.isNotEmpty == true)
-                      _buildInfoRow('Téléphone', userProfile.numeroTelephone!),
                   ],
                 ),
 
@@ -113,7 +111,6 @@ class ProfileDialog extends StatelessWidget {
                   Icons.admin_panel_settings,
                   [
                     _buildInfoRow('Rôle', _getRoleLabel(userProfile.role)),
-                    _buildInfoRow('Statut', _getStatusLabel(userProfile.status)),
                     if (userProfile.createdAt != null)
                       _buildInfoRow('Membre depuis', _formatDate(userProfile.createdAt!)),
                     if (userProfile.updatedAt != null)
@@ -220,15 +217,6 @@ class ProfileDialog extends StatelessWidget {
         return Colors.blue;
       case RoleUtilisateur.CITOYEN:
         return Colors.green;
-    }
-  }
-
-  String _getStatusLabel(StatutUtilisateur status) {
-    switch (status) {
-      case StatutUtilisateur.ACTIVE:
-        return 'Actif';
-      case StatutUtilisateur.DEACTIVATED:
-        return 'Désactivé';
     }
   }
 

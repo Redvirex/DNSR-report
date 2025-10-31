@@ -10,11 +10,17 @@ import '../models/incident.dart';
 import '../providers/incident_provider.dart';
 import '../services/supabase_service.dart';
 import '../config/app_config.dart';
+import '../widgets/wilaya_filter_dropdown.dart';
 
 class IncidentsMapPage extends StatefulWidget {
   final Incident? focusIncident;
+  final Function(String userId)? onNavigateToUser;
   
-  const IncidentsMapPage({super.key, this.focusIncident});
+  const IncidentsMapPage({
+    super.key, 
+    this.focusIncident,
+    this.onNavigateToUser,
+  });
 
   @override
   State<IncidentsMapPage> createState() => _IncidentsMapPageState();
@@ -24,6 +30,9 @@ class _IncidentsMapPageState extends State<IncidentsMapPage> {
   Incident? _selectedIncident;
   js.JsObject? _googleMap;
   IncidentStatut? _statusFilter;
+  String? _wilayaFilter;
+  DateTime? _fromDate;
+  DateTime? _toDate;
   String? _currentViewType;
   bool _isManualNavigation = false;
   int _lastIncidentCount = 0;
@@ -496,15 +505,85 @@ class _IncidentsMapPageState extends State<IncidentsMapPage> {
   }
 
   List<Incident> _getFilteredIncidents(List<Incident> incidents) {
-    if (_statusFilter == null) {
-      return incidents;
+    var filtered = incidents;
+    
+    // Apply status filter
+    if (_statusFilter != null) {
+      filtered = filtered.where((incident) => incident.statut == _statusFilter).toList();
     }
-    return incidents.where((incident) => incident.statut == _statusFilter).toList();
+    
+    // Apply wilaya filter
+    if (_wilayaFilter != null) {
+      filtered = filtered.where((incident) => incident.wilaya == _wilayaFilter).toList();
+    }
+    
+    // Apply date range filter
+    if (_fromDate != null || _toDate != null) {
+      filtered = filtered.where((incident) {
+        final incidentDate = incident.createdAt;
+        
+        // Check if within date range
+        if (_fromDate != null && incidentDate.isBefore(_fromDate!)) {
+          return false;
+        }
+        if (_toDate != null && incidentDate.isAfter(_toDate!.add(const Duration(days: 1)))) {
+          return false;
+        }
+        
+        return true;
+      }).toList();
+    }
+    
+    return filtered;
+  }
+  
+  // Show date range picker dialog
+  Future<void> _showDateRangePicker() async {
+    final fromDate = await showDatePicker(
+      context: context,
+      initialDate: _fromDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      helpText: 'Select Start Date',
+    );
+    
+    if (fromDate == null || !mounted) return;
+    
+    final toDate = await showDatePicker(
+      context: context,
+      initialDate: _toDate ?? DateTime.now(),
+      firstDate: fromDate,
+      lastDate: DateTime.now(),
+      helpText: 'Select End Date',
+    );
+    
+    if (toDate == null || !mounted) return;
+    
+    setState(() {
+      _fromDate = fromDate;
+      _toDate = toDate;
+    });
   }
 
   void _updateFilter(IncidentStatut? filter) {
+    if (!mounted) return;
+    
     setState(() {
       _statusFilter = filter;
+    });
+    
+    // When filter changes, allow auto-centering
+    _isManualNavigation = false;
+    
+    // Refresh the map with filtered incidents
+    _refreshMapMarkers();
+  }
+  
+  void _updateWilayaFilter(String? wilaya) {
+    if (!mounted) return;
+    
+    setState(() {
+      _wilayaFilter = wilaya;
     });
     
     // When filter changes, allow auto-centering
@@ -772,14 +851,16 @@ class _IncidentsMapPageState extends State<IncidentsMapPage> {
                         color: Colors.grey,
                       ),
                     ),
-                    PopupMenuButton<IncidentStatut?>(
-                      icon: Icon(
-                        Icons.filter_list,
-                        size: 20,
-                        color: _statusFilter != null ? Colors.blue : Colors.grey,
-                      ),
-                      onSelected: _updateFilter,
-                      itemBuilder: (context) => [
+                    Row(
+                      children: [
+                        PopupMenuButton<IncidentStatut?>(
+                          icon: Icon(
+                            Icons.filter_list,
+                            size: 20,
+                            color: _statusFilter != null ? Colors.blue : Colors.grey,
+                          ),
+                          onSelected: _updateFilter,
+                          itemBuilder: (context) => [
                         const PopupMenuItem<IncidentStatut?>(
                           value: null,
                           child: Text('All Incidents'),
@@ -837,43 +918,142 @@ class _IncidentsMapPageState extends State<IncidentsMapPage> {
                         ),
                       ],
                     ),
+                        const SizedBox(width: 8),
+                        // Wilaya Filter Dropdown
+                        Consumer<IncidentProvider>(
+                          builder: (context, incidentProvider, child) {
+                            return WilayaFilterDropdown(
+                              selectedWilaya: _wilayaFilter,
+                              availableWilayas: incidentProvider.availableWilayas,
+                              onWilayaChanged: _updateWilayaFilter,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        // Date range filter button
+                        IconButton(
+                          icon: Icon(
+                            _fromDate != null || _toDate != null
+                                ? Icons.filter_list
+                                : Icons.date_range,
+                            size: 20,
+                            color: _fromDate != null || _toDate != null
+                                ? Colors.blue
+                                : Colors.grey,
+                          ),
+                          onPressed: _showDateRangePicker,
+                          tooltip: 'Filter by date range',
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-                if (_statusFilter != null)
+                if (_statusFilter != null || _wilayaFilter != null || _fromDate != null || _toDate != null)
                   Container(
                     margin: const EdgeInsets.only(top: 8),
                     child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(_statusFilter!).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _getStatusColor(_statusFilter!), width: 1),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Filter: ${_getStatusText(_statusFilter!)}',
-                                style: TextStyle(
-                                  color: _getStatusColor(_statusFilter!),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
+                        if (_statusFilter != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(_statusFilter!).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _getStatusColor(_statusFilter!), width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Filter: ${_getStatusText(_statusFilter!)}',
+                                  style: TextStyle(
+                                    color: _getStatusColor(_statusFilter!),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 4),
-                              GestureDetector(
-                                onTap: () => _updateFilter(null),
-                                child: Icon(
-                                  Icons.close,
-                                  size: 12,
-                                  color: _getStatusColor(_statusFilter!),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () => _updateFilter(null),
+                                  child: Icon(
+                                    Icons.close,
+                                    size: 12,
+                                    color: _getStatusColor(_statusFilter!),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
+                        if (_wilayaFilter != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.blue, width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Wilaya: $_wilayaFilter',
+                                  style: const TextStyle(
+                                    color: Colors.blue,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () => _updateWilayaFilter(null),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 12,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (_fromDate != null || _toDate != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green, width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Date: ${_fromDate != null ? '${_fromDate!.day}/${_fromDate!.month}' : ''} - ${_toDate != null ? '${_toDate!.day}/${_toDate!.month}' : ''}',
+                                  style: const TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () {
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _fromDate = null;
+                                      _toDate = null;
+                                    });
+                                  },
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 12,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -1089,7 +1269,7 @@ class _IncidentsMapPageState extends State<IncidentsMapPage> {
 
                   // User Information
                   if (incident.userName != null)
-                    _buildDetailRow('Reported by', incident.userName!),
+                    _buildClickableUserRow('Reported by', incident.userName!, incident.utilisateurId),
 
                   if (incident.userEmail != null)
                     _buildDetailRow('Email', incident.userEmail!),
@@ -1257,8 +1437,100 @@ class _IncidentsMapPageState extends State<IncidentsMapPage> {
               },
             ),
           ),
+          
+          const SizedBox(height: 24),
+          
+          // Action Buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  label: const Text('Delete Incident'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => _confirmDeleteIncident(_selectedIncident!),
+                ),
+              ),
+            ],
+          ),
       ],
     );
+  }
+  
+  // Show delete confirmation dialog
+  Future<void> _confirmDeleteIncident(Incident incident) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Incident'),
+        content: Text(
+          'Are you sure you want to delete this incident?\n\nID: ${incident.id.substring(0, 8)}\nType: ${incident.incidentTypeName ?? 'Unknown'}\n\nThis action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      await _deleteIncident(incident);
+    }
+  }
+  
+  // Delete incident
+  Future<void> _deleteIncident(Incident incident) async {
+    final incidentProvider = Provider.of<IncidentProvider>(context, listen: false);
+    
+    // Show loading indicator
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Deleting incident...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    
+    final success = await incidentProvider.deleteIncident(incident.id);
+    
+    if (!mounted) return;
+    
+    if (success) {
+      // Close the details panel
+      setState(() {
+        _selectedIncident = null;
+      });
+      
+      // Refresh markers
+      _refreshMapMarkers();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Incident deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete incident'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _showImageDialog(String imageUrl, int initialIndex) {
@@ -1357,6 +1629,55 @@ class _IncidentsMapPageState extends State<IncidentsMapPage> {
         ],
       ),
     );
+  }
+  
+  Widget _buildClickableUserRow(String label, String value, String userId) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 4),
+          InkWell(
+            onTap: () => _navigateToUserPage(userId),
+            child: Row(
+              children: [
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.blue,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.arrow_forward, size: 16, color: Colors.blue),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _navigateToUserPage(String userId) {
+    if (widget.onNavigateToUser != null) {
+      widget.onNavigateToUser!(userId);
+    } else {
+      // Fallback if no callback is provided
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Navigation to user page not available'),
+        ),
+      );
+    }
   }
 
   String _getStatusText(IncidentStatut status) {

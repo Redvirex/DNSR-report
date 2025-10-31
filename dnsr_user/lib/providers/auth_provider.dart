@@ -332,13 +332,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Updates user profile information in the database
-  /// Handles phone number verification if a new phone number is provided
+  /// Updates the user profile with the provided information
   /// Returns true if the update was successful
   Future<bool> updateProfile({
     String? nom,
     String? prenom,
-    String? numeroTelephone,
-    bool verifyPhone = false,
   }) async {
     if (_userProfile == null) {
       return false;
@@ -349,76 +347,11 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      if (verifyPhone && numeroTelephone != null) {
-        _userProfile = await _supabaseService.updateUserProfile(
-          userId: _userProfile!.id,
-          nom: nom,
-          prenom: prenom,
-          numeroTelephone: numeroTelephone,
-          verifyPhone: false,
-        );
-
-        _userProfile = await _supabaseService.verifyPhoneNumber(
-          userId: _userProfile!.id,
-          phoneNumber: numeroTelephone,
-        );
-      } else {
-        _userProfile = await _supabaseService.updateUserProfile(
-          userId: _userProfile!.id,
-          nom: nom,
-          prenom: prenom,
-          numeroTelephone: numeroTelephone,
-          verifyPhone: verifyPhone,
-        );
-      }
-
-      _status = _userProfile!.isProfileComplete
-          ? AuthStatus.authenticated
-          : AuthStatus.profileIncomplete;
-
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Completes phone verification and activates user if profile is complete
-  /// This method should be called after OTP verification is successful
-  Future<bool> completePhoneVerification({
-    required String phoneNumber,
-  }) async {
-    if (_userProfile == null) {
-      return false;
-    }
-
-    try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
-
-      // Check if user has complete profile (full name + phone)
-      final hasFullName = _userProfile!.nom != null && 
-                         _userProfile!.nom!.isNotEmpty &&
-                         _userProfile!.prenom != null && 
-                         _userProfile!.prenom!.isNotEmpty;
-
-      if (hasFullName) {
-        // Activate user and deactivate others with same phone number
-        _userProfile = await _supabaseService.activateUserWithPhoneVerification(
-          userId: _userProfile!.id,
-          phoneNumber: phoneNumber,
-        );
-      } else {
-        // Just update the phone number without activation
-        _userProfile = await _supabaseService.updateUserProfile(
-          userId: _userProfile!.id,
-          numeroTelephone: phoneNumber,
-        );
-      }
+      _userProfile = await _supabaseService.updateUserProfile(
+        userId: _userProfile!.id,
+        nom: nom,
+        prenom: prenom,
+      );
 
       _status = _userProfile!.isProfileComplete
           ? AuthStatus.authenticated

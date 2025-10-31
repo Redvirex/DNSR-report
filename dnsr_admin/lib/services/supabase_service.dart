@@ -54,11 +54,6 @@ class AdminSupabaseService {
         throw Exception('Access denied: Admin privileges required');
       }
       
-      if (userProfile.status != StatutUtilisateur.ACTIVE) {
-        await client.auth.signOut();
-        throw Exception('Account is deactivated. Please contact support.');
-      }
-      
       developer.log('Admin login successful', name: 'SupabaseService');
       return userProfile;
       
@@ -110,7 +105,7 @@ class AdminSupabaseService {
       }
       
       final profile = UserProfile.fromJson(response);
-      developer.log('Profile parsed - role: ${profile.role}, status: ${profile.status}', name: 'SupabaseService');
+      developer.log('Profile parsed - role: ${profile.role}', name: 'SupabaseService');
       return profile;
     } catch (e) {
       developer.log('Error fetching user profile: $e', name: 'SupabaseService', error: e);
@@ -140,6 +135,7 @@ class AdminSupabaseService {
     DateTime? fromDate,
     DateTime? toDate,
     IncidentStatut? statutFilter,
+    String? wilayaFilter,
   }) async {
     try {
       var query = client.from('incident').select('*');
@@ -154,6 +150,10 @@ class AdminSupabaseService {
 
       if (statutFilter != null) {
         query = query.eq('statut', statutFilter.name);
+      }
+      
+      if (wilayaFilter != null) {
+        query = query.eq('wilaya', wilayaFilter);
       }
 
       final response = await query
@@ -452,6 +452,65 @@ class AdminSupabaseService {
       return true;
     } catch (e) {
       developer.log('Error updating incident status: $e', name: 'SupabaseService', error: e);
+      return false;
+    }
+  }
+
+  // Delete incident
+  Future<bool> deleteIncident(String incidentId) async {
+    try {
+      developer.log('Deleting incident: $incidentId', name: 'SupabaseService');
+      
+      // Step 1: Get all image URLs for this incident
+      final imageUrls = await getIncidentPhotoUrls(incidentId);
+      developer.log('Found ${imageUrls.length} images to delete', name: 'SupabaseService');
+      
+      // Step 2: Delete images from storage bucket
+      if (imageUrls.isNotEmpty) {
+        for (final url in imageUrls) {
+          try {
+            // Extract the file path from the URL
+            // URL format: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
+            final uri = Uri.parse(url);
+            final pathSegments = uri.pathSegments;
+            
+            // Find the bucket name and file path
+            // Path segments: ['storage', 'v1', 'object', 'public', '<bucket>', '<file_path>']
+            if (pathSegments.length > 5) {
+              final bucket = pathSegments[4];
+              final filePath = pathSegments.sublist(5).join('/');
+              
+              developer.log('Deleting file: $filePath from bucket: $bucket', name: 'SupabaseService');
+              
+              await client.storage
+                  .from(bucket)
+                  .remove([filePath]);
+                  
+              developer.log('Successfully deleted file: $filePath', name: 'SupabaseService');
+            }
+          } catch (e) {
+            developer.log('Error deleting image $url: $e', name: 'SupabaseService', error: e);
+            // Continue deleting other images even if one fails
+          }
+        }
+      }
+      
+      // Step 3: Delete incident_img records (if not cascade deleted)
+      await client
+          .from('incident_img')
+          .delete()
+          .eq('incident_id', incidentId);
+      
+      // Step 4: Delete the incident (this will cascade delete related records if configured)
+      await client
+          .from('incident')
+          .delete()
+          .eq('id', incidentId);
+
+      developer.log('Successfully deleted incident and all associated data: $incidentId', name: 'SupabaseService');
+      return true;
+    } catch (e) {
+      developer.log('Error deleting incident: $e', name: 'SupabaseService', error: e);
       return false;
     }
   }

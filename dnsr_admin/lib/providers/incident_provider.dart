@@ -12,6 +12,7 @@ class IncidentProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   IncidentStatut? _statusFilter;
+  String? _wilayaFilter;
   bool _isRefreshing = false;
   RealtimeChannel? _incidentChannel;
 
@@ -20,6 +21,18 @@ class IncidentProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   IncidentStatut? get statusFilter => _statusFilter;
+  String? get wilayaFilter => _wilayaFilter;
+  
+  /// Get list of distinct wilayas from loaded incidents
+  List<String> get availableWilayas {
+    final wilayas = _incidents
+        .where((incident) => incident.wilaya != null && incident.wilaya!.isNotEmpty)
+        .map((incident) => incident.wilaya!)
+        .toSet()
+        .toList();
+    wilayas.sort();
+    return wilayas;
+  }
 
   /// Set status filter
   void setStatusFilter(IncidentStatut? filter) {
@@ -45,6 +58,34 @@ class IncidentProvider extends ChangeNotifier {
     
     developer.log('Clearing status filter', name: 'IncidentProvider');
     _statusFilter = null;
+    notifyListeners();
+    Future.microtask(() => loadIncidents(refresh: true));
+  }
+
+  /// Set wilaya filter
+  void setWilayaFilter(String? wilaya) {
+    if (_wilayaFilter == wilaya) {
+      if (kDebugMode) {
+        developer.log('Wilaya filter unchanged, skipping reload', name: 'IncidentProvider');
+      }
+      return;
+    }
+    
+    developer.log('Setting wilaya filter to: $wilaya', name: 'IncidentProvider');
+    _wilayaFilter = wilaya;
+    notifyListeners();
+    Future.microtask(() => loadIncidents(refresh: true));
+  }
+
+  /// Clear wilaya filter
+  void clearWilayaFilter() {
+    if (_wilayaFilter == null) {
+      developer.log('Wilaya filter already null, skipping reload', name: 'IncidentProvider');
+      return;
+    }
+    
+    developer.log('Clearing wilaya filter', name: 'IncidentProvider');
+    _wilayaFilter = null;
     notifyListeners();
     Future.microtask(() => loadIncidents(refresh: true));
   }
@@ -79,6 +120,7 @@ class IncidentProvider extends ChangeNotifier {
         fromDate: fromDate,
         toDate: toDate,
         statutFilter: _statusFilter,
+        wilayaFilter: _wilayaFilter,
       );
 
       debugPrint('IncidentProvider: Loaded ${newIncidents.length} incidents');
@@ -202,6 +244,37 @@ class IncidentProvider extends ChangeNotifier {
       return success;
     } catch (e) {
       debugPrint('IncidentProvider: Error updating incident status: $e');
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+  
+  // Delete incident
+  Future<bool> deleteIncident(String incidentId) async {
+    try {
+      debugPrint('IncidentProvider: Deleting incident $incidentId');
+      
+      final success = await _supabaseService.deleteIncident(incidentId);
+      
+      if (success) {
+        debugPrint('IncidentProvider: Incident deleted successfully - real-time subscription will handle UI update');
+        
+        // Remove from local list immediately for better UX
+        _incidents.removeWhere((incident) => incident.id == incidentId);
+        
+        // Refresh statistics
+        loadStatistics();
+        notifyListeners();
+        
+        debugPrint('IncidentProvider: Delete completed successfully');
+      } else {
+        debugPrint('IncidentProvider: Delete failed');
+      }
+      
+      return success;
+    } catch (e) {
+      debugPrint('IncidentProvider: Error deleting incident: $e');
       _errorMessage = e.toString();
       notifyListeners();
       return false;
